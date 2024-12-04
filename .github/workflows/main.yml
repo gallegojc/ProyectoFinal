@@ -1,0 +1,72 @@
+name: Microservices Build docker hub final proyect
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          
+      # Construccion de jars
+      - name: Build Micro Article
+        run: mvn -f MicroserviceArticles/pom.xml clean install -DskipTests=true
+      
+      - name: Build Micro Worker
+        run: mvn -f MicroserviceWorker/pom.xml clean install -DskipTests=true
+
+      - name: Build Micro Config
+        run: mvn -f MicroserviceConfig/pom.xml clean install -DskipTests=true
+
+      - name: Build Micro Eureka
+        run: mvn -f MicroserviceEureka/pom.xml clean install -DskipTests=true
+
+
+      # Construccion de imagenes
+      - name: Build image worker
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/final:worker .
+        working-directory: MicroserviceWorker
+        
+      - name: Build image config
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/final:config .
+        working-directory: MicroserviceConfig
+        
+      - name: Build image eureka
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/final:eureka .
+        working-directory: MicroserviceEureka
+
+      - name: Build image article
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/final:article .
+        working-directory: MicroserviceArticles
+
+
+      #Login docker
+      - name: Log in to Docker Hub 
+        uses: docker/login-action@v3.3.0
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+
+        
+      #Envio de imagenes a docker hub
+      - name: Push Docker image to Docker Hub
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/final:worker
+          docker push ${{ secrets.DOCKER_USERNAME }}/final:config
+          docker push ${{ secrets.DOCKER_USERNAME }}/final:eureka
+          docker push ${{ secrets.DOCKER_USERNAME }}/final:article
